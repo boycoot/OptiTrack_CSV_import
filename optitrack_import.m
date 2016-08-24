@@ -1,16 +1,19 @@
 function data=optitrack_import(name,body_names)
 
-% oads data from OptiTrack CSV files
+% Loads data from OptiTrack CSV files
 %
-% name: CSV filename string
-% body_names: cell of strings with body names that should be extracted from the log
+% name: CSV filename (string)
+% body_names: body names that should be extracted from the log (cell of strings)
 %
 % Example:
 % name='Take 2016-07-14 08.56.30 PM V2p0 PIV second shot';
 % body_names={'DelFly_rigid','DelFly_flexible','Synchronisation'};
 %
-% Matej Karasek (matejkarasek@gmail.com), 2016
-
+% The CSV file should be exported with default settings, e.g. y points up and quaternions are used for orientation.
+% The output has z axis pointing up and uses standard airspace roll-pitch-yaw convention
+%
+% 
+% Author: Matej Karasek (matejkarasek@gmail.com), 2016
 
 Nbodies=length(body_names);
 
@@ -93,13 +96,10 @@ for n=1:Nbodies
             2*(qx(i)*qy(i)+qz(i)*qw(i))  1-2*(qx(i)^2+qz(i)^2)        2*(qy(i)*qz(i)-qx(i)*qw(i))
             2*(qx(i)*qz(i)-qy(i)*qw(i))  2*(qy(i)*qz(i)+qx(i)*qw(i))  1-2*(qx(i)^2+qy(i)^2)      ];
         
-        % orientation from OptiTrack log (roll around OptiTrack Z, pitch around
-        % OptiTrack X, Yaw around OptiTrack Y)
+        % orientation from OptiTrack log (roll around OptiTrack Z, pitch around OptiTrack X, Yaw around OptiTrack Y)
         roll(i,1)=atan2d(R(2,1),R(2,2));
         pitch(i,1)=atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
         yaw(i,1)=atan2d(R(1,3),R(3,3));
-        
-        
         
         % making yaw continuous
         if ~isnan(yaw(i,1))
@@ -116,6 +116,7 @@ for n=1:Nbodies
         end
         
         RE2B=Rot_x(-roll(i)/180*pi)*Rot_y(-pitch(i)/180*pi)*Rot_z(-yaw(i)/180*pi);
+        
         % transform marker positions to body axes
         for jj=1:Nmarkers
             data.body(n).marker(jj).posBody(i,:)=(RE2B*(data.body(n).marker(jj).pos(i,:)-data.body(n).pos(i,:))')';
@@ -131,7 +132,4 @@ for n=1:Nbodies
     data.body(n).roll=roll;
     data.body(n).pitch=pitch;
     data.body(n).yaw=yaw;
-    
-    
-        
 end
