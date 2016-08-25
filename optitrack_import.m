@@ -52,15 +52,16 @@ for n=1:Nbodies
     % for each body, find the relevant columns
     nameMatchFull=strcmp(lines(4).string,char(body_names(n)));
     nameMatchPartial=strncmp(lines(4).string,char(body_names(n)),Nchar);
+    markerMatch=strcmp(lines(3).string,'Marker');
+    rigidBodyMarkerMatch=strcmp(lines(3).string,'Rigid Body Marker');
     
     % body columns
     data.body(n).cBody=index(nameMatchFull);
-    % all marker columns
-    markers=index((nameMatchPartial-nameMatchFull)==1);
-    % split to rigid body markers (fitted, 4 columns per marker) and measured markers (3 columns per marker)
-    Nmarkers=length(markers)/7;
-    data.body(n).cMarkersFitted=markers(1:4*Nmarkers);
-    data.body(n).cMarkers=markers(4*Nmarkers+1:7*Nmarkers);
+    % rigid body (fitted) marker columns (4 columns per marker)
+    data.body(n).cMarkersFitted=index((nameMatchPartial-nameMatchFull).*rigidBodyMarkerMatch==1);
+    Nmarkers=length(data.body(n).cMarkersFitted)/4; % 4 columns per marker
+    % raw marker columns (3 columns per marker)
+    data.body(n).cMarkers=index((nameMatchPartial-nameMatchFull).*markerMatch==1);
     
     % set the lines when body was untracked (marker error==0) to NaN
     nanframes=data.frames(data.CSVdata(:,data.body(n).cBody(8))==0)+1;
@@ -72,10 +73,17 @@ for n=1:Nbodies
     data.body(n).meanError=data.CSVdata(:,data.body(n).cBody(8));
     
     % marker positions
+    j=0;
     for i=1:Nmarkers
-        data.body(n).marker(i).pos=data.CSVdata(:,data.body(n).cMarkers([3*i 3*i-2 3*i-1])); % OptiTrack z,x,y --> x,y,z
         data.body(n).marker(i).posFitted=data.CSVdata(:,data.body(n).cMarkersFitted([4*i-1 4*i-3 4*i-2])); % OptiTrack z,x,y --> x,y,z
         data.body(n).marker(i).qual=data.CSVdata(:,data.body(n).cMarkersFitted(4*i));
+        
+        if sum(abs(data.body(n).marker(i).qual))==0 % the matching marker was not seen in the entire recording
+            data.body(n).marker(i).pos=NaN(data.Nframes,3);
+        else
+            j=j+1; % increment only if the marker was seen
+            data.body(n).marker(i).pos=data.CSVdata(:,data.body(n).cMarkers([3*j 3*j-2 3*j-1])); % OptiTrack z,x,y --> x,y,z
+        end
     end
     
     % calculate roll, pitch and yaw
