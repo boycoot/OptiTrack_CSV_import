@@ -6,8 +6,8 @@ function data=optitrack_import(name,body_names)
 % body_names: body names that should be extracted from the log (cell of strings)
 %
 % Example:
-% name='Take 2016-07-14 08.56.30 PM V2p0 PIV second shot';
-% body_names={'DelFly_rigid','DelFly_flexible','Synchronisation'};
+% name='Take 2016-07-09 02.31.15 PM VEL1p6 gain tuning';
+% body_names={'DelFly_rigid','DelFly_flexible'};
 %
 % The CSV file should be exported with default settings, e.g. y points up and quaternions are used for orientation.
 % The output has z axis pointing up and uses standard airspace roll-pitch-yaw convention
@@ -51,6 +51,11 @@ for n=1:Nbodies
     
     % for each body, find the relevant columns
     nameMatchFull=strcmp(lines(4).string,char(body_names(n)));
+    if sum(nameMatchFull)==0
+        disp(['Warning: Body with name "' char(body_names(n)) '" not found in the log.'])
+            continue
+    end
+    
     nameMatchPartial=strncmp(lines(4).string,char(body_names(n)),Nchar);
     markerMatch=strcmp(lines(3).string,'Marker');
     rigidBodyMarkerMatch=strcmp(lines(3).string,'Rigid Body Marker');
@@ -78,7 +83,7 @@ for n=1:Nbodies
         data.body(n).marker(i).posFitted=data.CSVdata(:,data.body(n).cMarkersFitted([4*i-1 4*i-3 4*i-2])); % OptiTrack z,x,y --> x,y,z
         data.body(n).marker(i).qual=data.CSVdata(:,data.body(n).cMarkersFitted(4*i));
         
-        if sum(abs(data.body(n).marker(i).qual))==0 % the matching marker was not seen in the entire recording
+        if sum(abs(data.body(n).marker(i).qual),'omitnan')==0 % the matching marker was not seen in the entire recording
             data.body(n).marker(i).pos=NaN(data.Nframes,3);
         else
             j=j+1; % increment only if the marker was seen
