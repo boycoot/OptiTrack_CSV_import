@@ -74,7 +74,18 @@ for n=1:Nbodies
     data.CSVdata(nanframes,index(nameMatchPartial==1))=NaN;
     
     % body position, orientation and mean marker error
-    data.body(n).pos=data.CSVdata(:,data.body(n).cBody([7 5 6])); % OptiTrack z,x,y --> x,y,z
+    if strcmp(frame_def,'ForwardLeftUp') % Frame definition: x forward, y left, z up
+         % OptiTrack z,x,y --> x,y,z
+        data.body(n).pos=data.CSVdata(:,data.body(n).cBody([7 5 6]));
+    elseif strcmp(frame_def,'ForwardRightDown') % Frame definition: x forward, y right, z down
+        % OptiTrack z,x,y --> x,-y,-z
+        data.body(n).pos=data.CSVdata(:,data.body(n).cBody([7 5 6]));
+        data.body(n).pos(:,[2 3])=-data.body(n).pos(:,[2 3]);
+    else
+        display('Unknown body fixed frame definition, please select either ''ForwardLeftUp'' or ''ForwardRightDown'' (aerospace standard).')
+        return
+    end
+        
     data.body(n).quat=data.CSVdata(:,data.body(n).cBody(1:4));
     data.body(n).meanError=data.CSVdata(:,data.body(n).cBody(8));
     
@@ -82,14 +93,21 @@ for n=1:Nbodies
     j=0;
     for i=1:Nmarkers
         data.body(n).marker(i).posFitted=data.CSVdata(:,data.body(n).cMarkersFitted([4*i-1 4*i-3 4*i-2])); % OptiTrack z,x,y --> x,y,z
+        if strcmp(frame_def,'ForwardRightDown')
+            data.body(n).marker(i).posFitted(:,[2:3])=-data.body(n).marker(i).posFitted(:,[2:3]); % change sign of y&z
+        end
+        
         data.body(n).marker(i).qual=data.CSVdata(:,data.body(n).cMarkersFitted(4*i));
         
         if sum(abs(data.body(n).marker(i).qual),'omitnan')==0 % the matching marker was not seen in the entire recording
             data.body(n).marker(i).pos=NaN(data.Nframes,3);
         else
             if ~isempty(data.body(n).cMarkers) % if no markers were exported, skip the following
-               j=j+1; % increment only if the marker was seen
+                j=j+1; % increment only if the marker was seen
                 data.body(n).marker(i).pos=data.CSVdata(:,data.body(n).cMarkers([3*j 3*j-2 3*j-1])); % OptiTrack z,x,y --> x,y,z
+                if strcmp(frame_def,'ForwardRightDown')
+                    data.body(n).marker(i).pos(:,[2:3])=-data.body(n).marker(i).pos(:,[2:3]);
+                end
             end
         end
     end
@@ -113,22 +131,16 @@ for n=1:Nbodies
             2*(qx(i)*qz(i)-qy(i)*qw(i))  2*(qy(i)*qz(i)+qx(i)*qw(i))  1-2*(qx(i)^2+qy(i)^2)      ];
         
         if strcmp(frame_def,'ForwardLeftUp')
-        
-        % Body frame definition: x forward, y left, z up
-        roll(i,1)=atan2d(R(2,1),R(2,2));
-        pitch(i,1)=atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
-        yaw(i,1)=atan2d(R(1,3),R(3,3));
-        
+            % Body frame definition: x forward, y left, z up
+            roll(i,1)=atan2d(R(2,1),R(2,2));
+            pitch(i,1)=atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
+            yaw(i,1)=atan2d(R(1,3),R(3,3));
+            
         elseif strcmp(frame_def,'ForwardRightDown')
-        
-        % Body frame definition: x forward, y right, z down
-        roll(i,1)=atan2d(R(2,1),R(2,2));
-        pitch(i,1)=-atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
-        yaw(i,1)=-atan2d(R(1,3),R(3,3));
-        
-        else
-           display('Unknown body fixed frame definition, please select either ''ForwardLeftUp'' or ''ForwardRightDown'' (aerospace standard).')
-           return
+            % Body frame definition: x forward, y right, z down
+            roll(i,1)=atan2d(R(2,1),R(2,2));
+            pitch(i,1)=atan2d(R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
+            yaw(i,1)=atan2d(-R(1,3),R(3,3));
         end
         
         % making yaw continuous
