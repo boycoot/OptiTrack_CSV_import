@@ -1,4 +1,4 @@
-function data=optitrack_import(name,body_names)
+function data=optitrack_import(name,body_names,frame_def)
 
 % Loads data from OptiTrack CSV files
 %
@@ -12,6 +12,7 @@ function data=optitrack_import(name,body_names)
 % The CSV file should be exported with default settings, e.g. y points up and quaternions are used for orientation.
 % The output has z axis pointing up and uses standard airspace roll-pitch-yaw convention
 %
+% Known bugs: does not work if one body name contains the full name of the other body (e.g. Drone and Drone2)
 % 
 % Author: Matej Karasek (matejkarasek@gmail.com), 2016
 
@@ -86,8 +87,10 @@ for n=1:Nbodies
         if sum(abs(data.body(n).marker(i).qual),'omitnan')==0 % the matching marker was not seen in the entire recording
             data.body(n).marker(i).pos=NaN(data.Nframes,3);
         else
-            j=j+1; % increment only if the marker was seen
-            data.body(n).marker(i).pos=data.CSVdata(:,data.body(n).cMarkers([3*j 3*j-2 3*j-1])); % OptiTrack z,x,y --> x,y,z
+            if ~isempty(data.body(n).cMarkers) % if no markers were exported, skip the following
+               j=j+1; % increment only if the marker was seen
+                data.body(n).marker(i).pos=data.CSVdata(:,data.body(n).cMarkers([3*j 3*j-2 3*j-1])); % OptiTrack z,x,y --> x,y,z
+            end
         end
     end
     
@@ -109,10 +112,23 @@ for n=1:Nbodies
             2*(qx(i)*qy(i)+qz(i)*qw(i))  1-2*(qx(i)^2+qz(i)^2)        2*(qy(i)*qz(i)-qx(i)*qw(i))
             2*(qx(i)*qz(i)-qy(i)*qw(i))  2*(qy(i)*qz(i)+qx(i)*qw(i))  1-2*(qx(i)^2+qy(i)^2)      ];
         
-        % orientation from OptiTrack log (roll around OptiTrack Z, pitch around OptiTrack X, Yaw around OptiTrack Y)
+        if strcmp(frame_def,'ForwardLeftUp')
+        
+        % Body frame definition: x forward, y left, z up
         roll(i,1)=atan2d(R(2,1),R(2,2));
         pitch(i,1)=atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
         yaw(i,1)=atan2d(R(1,3),R(3,3));
+        
+        elseif strcmp(frame_def,'ForwardRightDown')
+        
+        % Body frame definition: x forward, y right, z down
+        roll(i,1)=atan2d(R(2,1),R(2,2));
+        pitch(i,1)=-atan2d(-R(2,3),real(sqrt(1-R(2,3)^2))); % real added to avoid complex numbers (most likely due to rounding errors)
+        yaw(i,1)=-atan2d(R(1,3),R(3,3));
+        
+        else
+           display('Unknown body fixed frame definition, please select either ''ForwardLeftUp'' or ''ForwardRightDown'' (aerospace standard).') 
+        end
         
         % making yaw continuous
         if ~isnan(yaw(i,1))
@@ -132,7 +148,9 @@ for n=1:Nbodies
         
         % transform marker positions to body axes
         for jj=1:Nmarkers
-            data.body(n).marker(jj).posBody(i,:)=(RE2B*(data.body(n).marker(jj).pos(i,:)-data.body(n).pos(i,:))')';
+            if ~isempty(data.body(n).cMarkers) % if no markers were exported, skip the following
+                data.body(n).marker(jj).posBody(i,:)=(RE2B*(data.body(n).marker(jj).pos(i,:)-data.body(n).pos(i,:))')';
+            end
             data.body(n).marker(jj).posBodyFitted(i,:)=(RE2B*(data.body(n).marker(jj).posFitted(i,:)-data.body(n).pos(i,:))')';
         end
         
