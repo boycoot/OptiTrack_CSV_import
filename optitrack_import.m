@@ -127,7 +127,8 @@ for n=1:Nbodies
         yaw(i,1)=-atan2d(R(1,3),R(3,3));
         
         else
-           display('Unknown body fixed frame definition, please select either ''ForwardLeftUp'' or ''ForwardRightDown'' (aerospace standard).') 
+           display('Unknown body fixed frame definition, please select either ''ForwardLeftUp'' or ''ForwardRightDown'' (aerospace standard).')
+           return
         end
         
         % making yaw continuous
