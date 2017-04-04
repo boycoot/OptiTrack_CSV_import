@@ -48,7 +48,6 @@ data.time=data.CSVdata(:,2);
 % for each body, find the relevant data
 for n=1:Nbodies
     data.body(n).name=body_names(n);
-    Nchar=length(char(body_names(n)));
     
     % for each body, find the relevant columns
     nameMatchFull=strcmp(lines(4).string,char(body_names(n)));
@@ -56,8 +55,11 @@ for n=1:Nbodies
         disp(['Warning: Body with name "' char(body_names(n)) '" not found in the log.'])
             continue
     end
+    % get the rigid body ID
+    body_ID=char(lines(5).string(min(index(nameMatchFull))));
+    Nchar=length(char(body_ID));
     
-    nameMatchPartial=strncmp(lines(4).string,char(body_names(n)),Nchar);
+    nameMatchPartial=strncmp(lines(5).string,char(body_ID),Nchar-1); % the last character is a ' " '
     markerMatch=strcmp(lines(3).string,'Marker');
     rigidBodyMarkerMatch=strcmp(lines(3).string,'Rigid Body Marker');
     
